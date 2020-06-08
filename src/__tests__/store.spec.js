@@ -1,31 +1,18 @@
-import hatch from '../../../egg-hatchery/src/index';
-import reduxEgg from '../';
-import animalsEgg, { receiveAnimal, isPresent } from './helpers/animals-egg';
-import nameEgg, { replaceName, getName } from './helpers/name-egg';
-import counterEgg, { increment, getCount } from './helpers/counter-egg';
+import hatch from 'micro-egg-hatchery'
+import tealReduxEgg from '../'
 
-test('creates an store that has combineReducer reducer', () => {
-  const { store } = hatch(reduxEgg, counterEgg);
+test('breeds a redux store', () => {
+  const { store } = hatch(tealReduxEgg)
 
-  store.dispatch(increment(1));
-  const count = getCount(store.getState());
+  expect(store).toMatchObject({
+    dispatch: expect.any(Function),
+    getState: expect.any(Function),
+    subscribe: expect.any(Function),
+  })
+})
 
-  expect(count).toBe(1);
-});
-
-test('combines multiple eggs', () => {
-  const { store } = hatch(reduxEgg, counterEgg, animalsEgg, nameEgg);
-
-  store.dispatch(increment(1));
-  const count = getCount(store.getState());
-
-  store.dispatch(receiveAnimal('Savio'));
-  const isSavioPresent = isPresent(store.getState(), { name: 'Savio' });
-
-  store.dispatch(replaceName('Hoboken'));
-  const name = getName(store.getState());
-
-  expect(count).toBe(1);
-  expect(isSavioPresent).toBe(true);
-  expect(name).toBe('Hoboken');
-});
+test('default initial state is an empty object', () => {
+  const { store } = hatch(tealReduxEgg)
+  const state = store.getState()
+  expect(state).toEqual({})
+})

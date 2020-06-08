@@ -1,30 +1,19 @@
-import hatch from '../../../egg-hatchery/src/index';
-import reduxEgg from '../';
-import counterEgg, { increment, getCount } from './helpers/counter-egg';
+import hatch from 'micro-egg-hatchery'
+import reduxThunk from 'redux-thunk'
+import tealReduxEgg from '../'
 
-const INCREMENT_THREE = '@my/INCREMENT_THREE';
-const incrementThree = () => ({ type: INCREMENT_THREE });
+const DUMMY = 'DUMMY'
+const dummy = () => ({ type: DUMMY })
+const dummyThunk = () => (dispatch) => dispatch(dummy())
 
-test('adds a middleware', () => {
-  const middleware = store => next => action => {
-    next(action);
-    switch (action.type) {
-      case INCREMENT_THREE:
-        store.dispatch(increment(1));
-        store.dispatch(increment(2));
-        break;
+test('registers a middleware', () => {
+  const log = []
+  function testEgg({ afterAction, addMiddleware }) {
+    afterAction(DUMMY, () => log.push('test'))
+    addMiddleware(reduxThunk)
+  }
 
-      default:
-    }
-  };
-
-  const incrementEgg = ({ addMiddleware }) => {
-    addMiddleware(middleware);
-  };
-
-  const { store } = hatch(reduxEgg, counterEgg, incrementEgg);
-  store.dispatch(incrementThree());
-
-  const count = getCount(store.getState());
-  expect(count).toBe(3);
-});
+  const { store } = hatch(tealReduxEgg, testEgg)
+  store.dispatch(dummyThunk())
+  expect(log).toEqual(['test'])
+})

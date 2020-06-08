@@ -1,112 +1,76 @@
-import hatch from '../../../egg-hatchery/src/index';
-import reduxEgg from '../';
-import counterEgg, {
-  INCREMENT,
-  increment,
-  getCount,
-  replaceCount
-} from './helpers/counter-egg';
-import { newLogEgg } from './helpers/new-log-egg';
+import hatch from 'micro-egg-hatchery'
+import tealReduxEgg from '../'
 
-let log, logEgg;
-beforeEach(() => {
-  log = [];
-  logEgg = newLogEgg(log);
-});
+const DUMMY = 'DUMMY'
+const dummy = () => ({ type: DUMMY })
+const notDummy = () => ({ type: `NOT.${DUMMY}` })
 
-test('executes a callback when an action of that type is dispatched', () => {
-  const afterEgg = ({ afterAction }) => {
-    afterAction(INCREMENT, () => log.push('afterAction executed'));
-  };
+test('registers one action to execute after some action', () => {
+  const log = []
+  function testEgg({ afterAction }) {
+    afterAction(DUMMY, () => log.push('test'))
+  }
 
-  const { store } = hatch(reduxEgg, counterEgg, afterEgg);
-  store.dispatch(increment(1));
+  const { store } = hatch(tealReduxEgg, testEgg)
+  store.dispatch(dummy())
+  expect(log).toEqual(['test'])
+})
 
-  expect(log).toEqual(['afterAction executed']);
-});
+test('ignores other action types', () => {
+  const log = []
+  function testEgg({ afterAction }) {
+    afterAction(DUMMY, () => log.push('test'))
+  }
 
-test('it is executed after the action is reduced', () => {
-  const afterEgg = ({ afterAction }) => {
-    afterAction(INCREMENT, () => log.push('afterAction executed'));
-  };
+  const { store } = hatch(tealReduxEgg, testEgg)
+  store.dispatch(notDummy())
+  expect(log).toEqual([])
+})
 
-  const { store } = hatch(reduxEgg, counterEgg, logEgg, afterEgg);
-  store.dispatch(increment(1));
+test('if there is more than one reducer for the same action, are executed in the addition order', () => {
+  const log = []
+  function testEgg({ afterAction }) {
+    afterAction(DUMMY, () => log.push('test1'))
+    afterAction(DUMMY, () => log.push('test2'))
+  }
 
-  const count = getCount(store.getState());
-  expect(count).toBe(1);
-  expect(log).toEqual([increment(1), 'afterAction executed']);
-});
+  const { store } = hatch(tealReduxEgg, testEgg)
+  store.dispatch(dummy())
+  expect(log).toEqual(['test1', 'test2'])
+})
 
-test('it receives the all breeds as first argument', () => {
-  const DOUBLE = '@my/DOUBLE';
-  const double = () => ({ type: DOUBLE });
+describe('after action function parameters', () => {
+  test('the first argument is breeds', () => {
+    const log = []
+    function testEgg({ afterAction, breed }) {
+      breed('message', () => 'test')
+      afterAction(DUMMY, ({ message }) => log.push(message))
+    }
 
-  const afterEgg = ({ afterAction }) => {
-    afterAction(DOUBLE, ({ store }) => {
-      const count = getCount(store.getState());
-      store.dispatch(increment(count));
-    });
-  };
+    const { store } = hatch(tealReduxEgg, testEgg)
+    store.dispatch(dummy())
+    expect(log).toEqual(['test'])
+  })
 
-  const { store } = hatch(reduxEgg, counterEgg, afterEgg);
-  store.dispatch(increment(3));
-  store.dispatch(double());
+  test('the second argument is the action', () => {
+    const log = []
+    function testEgg({ afterAction }) {
+      afterAction(DUMMY, (breeds, action) => log.push(action))
+    }
 
-  const count = getCount(store.getState());
-  expect(count).toBe(6);
-});
+    const { store } = hatch(tealReduxEgg, testEgg)
+    store.dispatch(dummy())
+    expect(log).toEqual([dummy()])
+  })
 
-test('it receives the action as second argument', () => {
-  const LOAD_COUNTER = '@my/LOAD_COUNTER';
-  const loadCounter = id => ({ type: LOAD_COUNTER, id });
+  test('the first argument includes the store', () => {
+    const log = []
+    function testEgg({ afterAction }) {
+      afterAction(DUMMY, ({ store }) => log.push(store))
+    }
 
-  const afterEgg = ({ afterAction }) => {
-    afterAction(LOAD_COUNTER, ({ store }, { id }) => {
-      const readedValue = parseInt(id, 16);
-      store.dispatch(replaceCount(readedValue));
-    });
-  };
-
-  const { store } = hatch(reduxEgg, counterEgg, afterEgg);
-  store.dispatch(loadCounter('faX43'));
-
-  const count = getCount(store.getState());
-  expect(count).toBe(0xfa);
-});
-
-test('there can be more than one afterAction', () => {
-  const afterEgg = ({ afterAction }) => {
-    afterAction(INCREMENT, (_, { value }) => {
-      log.push(`afterIncrement 1 ${value}`);
-    });
-    afterAction(INCREMENT, (_, { value }) => {
-      log.push(`afterIncrement 2 ${value}`);
-    });
-  };
-
-  const { store } = hatch(reduxEgg, counterEgg, logEgg, afterEgg);
-  store.dispatch(increment(1));
-  store.dispatch(increment(3));
-
-  expect(log).toEqual([
-    increment(1),
-    'afterIncrement 1 1',
-    'afterIncrement 2 1',
-    increment(3),
-    'afterIncrement 1 3',
-    'afterIncrement 2 3'
-  ]);
-});
-
-test('throws when the egg is hatched', () => {
-  let foundAfterAction;
-  const anEgg = ({ afterAction }) => {
-    foundAfterAction = afterAction;
-  };
-
-  hatch(reduxEgg, anEgg);
-  expect(() => foundAfterAction(INCREMENT, () => {})).toThrow(
-    /afterAction cannot be used once is hatched/
-  );
-});
+    const { store } = hatch(tealReduxEgg, testEgg)
+    store.dispatch(dummy())
+    expect(log).toEqual([store])
+  })
+})

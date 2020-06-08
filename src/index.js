@@ -1,9 +1,3 @@
-import storeEgg from './store-egg';
-import combineReducersEgg from './combine-reducers-egg';
-import interceptorsEgg from './interceptors-egg';
+import { tealReduxEgg } from './tealReduxEgg'
 
-export default function reduxEgg(incubators) {
-  storeEgg(incubators);
-  combineReducersEgg(incubators);
-  interceptorsEgg(incubators);
-}
+export default tealReduxEgg

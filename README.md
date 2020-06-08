@@ -1,273 +1,369 @@
+# Teal Redux Egg 🥚
+
+> 🥚 [Eggs](https://github.com/drpicox/egg-hatchery) are the new 🦆 ducks.
+
+According [Wikipedia](https://en.wikipedia.org/wiki/Eurasian_teal),
+the Eurasian teal, common teal, or Eurasian green-winged teal,
+often called simply the teal,
+is one of the smallest breeds of ducks.
+
+![Eurasian teal duck](https://upload.wikimedia.org/wikipedia/commons/c/c0/Eurasian_teal_%28Anas_crecca%29_Photograph_by_Shantanu_Kuveskar.jpg)
+
+Better cohesion,
+lower coupling,
+better extensibility,
+better reusability.
+Embrace SOLID programming.
+
+```javascript
+import { update } from 'object-path-immutable'
+
+export function getCount(state) {
+  return state.counter
+}
+
+export const INCREMENT = 'counter/INCREMENT'
+export function increment(amount = 1) {
+  return { type: INCREMENT, amount }
+}
+
+function initializeCounter(state = {}) {
+  return update(state, 'counter', (c = 0) => c)
+}
+
+function reduceIncrement(state, action) {
+  return update(state, 'counter', (c) => c + action.amount)
+}
+
+export default function counterEgg({ initializeState, reduceAction }) {
+  initializeState(initializeCounter)
+  reduceAction(INCREMENT, reduceIncrement)
+}
+```
+
+The problem is not the boilerplate,
+the problem is that things are not related
+
+## Table of Content
+
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
-- [Redux Egg 🥚](#redux-egg-)
-  - [First egg](#first-egg)
-    - [combineReducer](#combinereducer)
-    - [actions pattern](#actions-pattern)
-    - [selectors patterns](#selectors-patterns)
-  - [Interceptors](#interceptors)
-    - [filterAction](#filteraction)
-    - [decorateActions](#decorateactions)
-    - [afterAction](#afteraction)
-  - [Middleware](#middleware)
-    - [addMiddleware](#addmiddleware)
-  - [Why are eggs better than ducks?](#why-are-eggs-better-than-ducks)
-    - [REASON 1: Combine eggs and solve dependencies](#reason-1-combine-eggs-and-solve-dependencies)
-    - [REASON 2: Thunks sucks](#reason-2-thunks-sucks)
-    - [REASON 3: They are still ducks](#reason-3-they-are-still-ducks)
-  - [Learn deeper](#learn-deeper)
+- [First egg](#first-egg)
+  - [# initializeState](#-initializestate)
+  - [# reduceAction](#-reduceaction)
+  - [# afterAction](#-afteraction)
+- [Patterns](#patterns)
+  - [Action pattern](#action-pattern)
+  - [Selectors patterns](#selectors-patterns)
+  - [# addMiddleware](#-addmiddleware)
+- [Why are eggs better than ducks?](#why-are-eggs-better-than-ducks)
+  - [REASON 1: Combine eggs and solve dependencies](#reason-1-combine-eggs-and-solve-dependencies)
+  - [REASON 2: Thunks sucks](#reason-2-thunks-sucks)
+  - [REASON 3: They are still ducks](#reason-3-they-are-still-ducks)
+  - [REASON 4: Teal Redux Eggs are SOLID](#reason-4-teal-redux-eggs-are-solid)
+  - [REASON 5: Less dirty mains](#reason-5-less-dirty-mains)
+- [Learn more](#learn-more)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-# Redux Egg 🥚
-
-> 🥚 Eggs are the new 🦆 ducks.
-
-```javascript
-import hatch from 'egg-hatchery';
-import storeEgg from 'store-egg';
-import counterEgg, { increment, getCount } from '@my/counter-egg';
-
-test('counter egg increments in one', () => {
-  const { store } = hatch(storeEgg, counterEgg);
-  store.dispatch(increment());
-  expect(getCount(store.getState())).toBe(1);
-});
-```
-
 ## First egg
 
-An egg is function that receives an object with tools.
-Export by default that function, and also export your action types and constructors.
+An egg is function that initializes a module, or an array of eggs.
+A Teal Redux Egg is like a Duck,
+export all selectors, all action types, and all action creators;
+but instead of exporting as default symbol the reducer,
+export as the default symbol the egg.
 
 ```javascript
-export const INCREMENT = `${PREFIX}/INCREMENT`;
-export const increment = (value = 1) => ({ type: INCREMENT, value });
-export const REPLACE_COUNT = `${PREFIX}/REPLACE_COUNT`;
-export const replaceCount = value => ({ type: REPLACE_COUNT, value });
+// counterEgg.js
+import { update } from 'object-path-immutable'
+import incrementEgg from './incrementEgg'
+import resetEgg from './resetEgg'
 
-function counterReducer(state = 0, action) {
-  switch (action.type) {
-    case INCREMENT:
-      return state + action.value;
+export * from './incrementEgg'
+export * from './resetEgg'
 
-    case REPLACE_COUNT:
-      return action.value;
-
-    default:
-      return state;
-  }
+export function getCount(state) {
+  return state.counter
 }
 
-export default ({ combineReducer }) => {
-  combineReducer('@my/counter', counterReducer);
-};
-```
-
-### combineReducer
-
-It combines your reducer with the other reducers from other eggs. It receives two arguments. The first argument is a unique name for your reducer, and the second argument is the reducer itself.
-
-```typescript
-function combineReducer(name: string, reducer: ReduxReducer): void;
-```
-
-Obtain the `combineReducer` from the tools that the egg receives.
-
-```javascript
-function counterReducer(state = 0, action) {
-  // ...
+function initializeCounter(state) {
+  return update(state, 'counter', (c = 0) => c)
 }
 
-export default ({ combineReducer }) => {
-  combineReducer('@my/counter', counterReducer);
-};
+function counterEgg({ initializeState, reduceAction }) {
+  initializeState(initializeCounter)
+  reduceAction(INCREMENT, reduceIncrement)
+}
+
+export default [counterEgg, incrementEgg, resetEgg]
 ```
-
-As a good practice, use your package name as a prefix for the reducer name.
-
-An egg doesn't need to combine a reducer, but it must export an egg by default, although it does nothing.
 
 ```javascript
-const emptyEgg = [];
-export default emptyEgg;
+// incrementEgg.js
+import { update } from 'object-path-immutable'
+
+export const INCREMENT = 'counter/INCREMENT'
+export function increment(amount = 1) {
+  return { type: INCREMENT, amount }
+}
+
+function reduceIncrement(state, action) {
+  return update(state, 'counter', (c) => c + action.amount)
+}
+
+export default function incrementEgg({ reduceAction }) {
+  reduceAction(INCREMENT, reduceIncrement)
+}
 ```
 
-### actions pattern
+```javascript
+// resetEgg.js
+import { update } from 'object-path-immutable'
+
+export const RESET = 'counter/RESET'
+export function reset(amount = 1) {
+  return { type: RESET, amount }
+}
+
+function reduceReset(state, action) {
+  return update(state, 'counter', (c) => c + action.amount)
+}
+
+export default function resetEgg({ reduceAction }) {
+  reduceAction(RESET, reduceReset)
+}
+```
+
+### # initializeState
+
+Teal Redux starts with a state that consists of an empty object. This object has no values, no keys, and no default values. If you need any content to be part of the state, you have to initialize with initializeState. The following example is a counter, and it needs to increment from zero, so it initializes the counter property of the state to the value zero.
+
+```javascript
+// counterEgg.js
+import { update } from 'object-path-immutable'
+
+function initializeCounter(state) {
+  return update(state, 'counter', (c = 0) => c)
+}
+
+export default ({ initializeState }) => initializeState(initializeCounter)
+```
+
+Typically in Redux, we put the default initial state on the reducer itself. This strategy is correct for the typical redux reducer built with combineReducers, but another kind of reducers requires different approaches. Teal Redux Eggs decouples state initialization from reducer computation. It gives one tool to initialize it: initializeState.
+
+The initializeState tool receives a function that returns the state correctly initialized. Instead of initializing the state in the store creation, or in each reducer itself, you update it with only one tool and one mechanism. You can call initializeState as many times as you want.
+
+```javascript
+// todoEgg.js
+import { update } from 'object-path-immutable'
+
+function initializeTodo(state) {
+  return update(state, 'todo', (l = []) => l)
+}
+
+export default ({ initializeState }) => initializeState(initializeTodo)
+```
+
+And merge all calls in the app egg:
+
+```javascript
+// appEgg.js
+import counterEgg from './counterEgg'
+import todoEgg from './todoEgg'
+
+export default [counterEgg, todoEgg]
+```
+
+If you observe the code, you can see that each initializeState resolves a different part of the state; merging both eggs in the app, we initialize the whole state correctly. The final initialized state looks like:
+
+```json
+{
+  "counter": 0,
+  "todo": []
+}
+```
+
+In Redux, the createStore, receives as a second parameter an object with the initial state. This argument allows to preload data into the state. Teal Redux does not allow you to modify the createStore call, but initializeState enables you to preload the state from the source of your choice.
+
+```javascript
+// preloadStateEgg.js
+import { merge } from 'object-path-immutable'
+
+function preloadState(state) {
+  const { initialState } = global
+  if (!initialState) return state
+
+  return merge(state, '', initialState)
+}
+
+export default ({ initializeState }) => initializeState(preloadState)
+```
+
+The initializeState and stateInitializersFn are synchronous; they assume that the execution without any asynchronous call. If you need to load the state from external services, please consider using an action for that task.
+
+### # reduceAction
+
+In Redux, reducers compute actions. In Teal Redux too. The difference is that while most of the implementations of Redux relays in combineReducers, it associates reducers to subtrees, Teal Redux associates reducers to actions. Given an action, there is one of more than one reducers to compute that action given the whole state.
+
+The reduceAction tool configures the store to reduce a given action type with a specific reducer. When the store dispatches the action, it reduces the state with all reducers for that action type.
+
+```javascript
+// counterEgg.js
+import { update } from 'object-path-immutable'
+
+export const INCREMENT = 'counter/INCREMENT'
+export function increment(amount = 1) {
+  return { type: INCREMENT, amount }
+}
+
+function initializeCounter(state) {
+  return update(state, 'counter', (c = 0) => c)
+}
+
+function reduceIncrement(state, action) {
+  return update(state, 'counter', (c) => c + action.amount)
+}
+
+export default function incrementEgg({ initializeState, reduceAction }) {
+  initializeState(INCREMENT, initializeCounter)
+  reduceAction(INCREMENT, reduceIncrement)
+}
+```
+
+Note that each reducer receives the whole state. That means that the reducer should carefully update only that part of the state. Note also that reducers have no default initialization, initializeState handles that initialization.
+
+```javascript
+// counterStatsEgg.js
+import { update } from 'object-path-immutable'
+import { INCREMENT } from './counterEgg'
+
+function initializeCounterStats(state) {
+  return update(state, 'counterStats', (c = 0) => c)
+}
+
+function reduceIncrement(state, action) {
+  return update(state, 'counterStats', (c) => c + 1)
+}
+
+export default function incrementEgg({ initializeState, reduceAction }) {
+  initializeState(initializeCounterStats)
+  reduceAction(INCREMENT, reduceIncrement)
+}
+```
+
+```javascript
+// appEgg.js
+import counterEgg from './counterEgg'
+import counterStatsEgg from './counterStatsEgg'
+
+export default [counterEgg, counterStatsEgg]
+```
+
+### # afterAction
+
+Redux official documentation explains that state computation is synchronous. It shows that you must perform all asynchronous operations outside of reducers. It [proposes](https://redux.js.org/advanced/async-actions) to split asynchronous operations into multiple synchronous actions., and use Redux Thunk to fire all asynchronous logic. We do not recommend using Redux Thunk unless you want to perform dispatch of actions using partial state from redux.
+
+With Teal Redux, instead of using action creators with thunks, you create an after-action. It is a function that executes an operation after the store reduces it. Use after actions to develop your async operations.
+
+```javascript
+// fetchPostsEgg.js
+import receivePosts from './receivePostsEgg'
+
+export const FETCH_POSTS = 'posts/FETCH'
+export function fetchPosts(subreddit) {
+  return { type: FETCH_POSTS, subreddit }
+}
+
+async function afterFetchPosts({ store }, action) {
+  const response = await fetch(
+    `https://www.reddit.com/r/${action.subreddit}.json`,
+  )
+  const json = await response.json()
+  store.dispatch(receivePosts(action.subreddit, json))
+}
+
+export default ({ afterAction }) => afterAction(FETCH_POSTS, afterFetchPosts)
+```
+
+Like using custom middleware, redux observable, or sagas, the best part of the capacity to react to completed operations. In a previous example, we have shown how you can add two reducers to the same action type, but this is usually a bad idea. Here we offer the better alternative, use a second action to update a different part of the state.
+
+```javascript
+// counterStatsEgg.js
+import { update } from 'object-path-immutable'
+import { INCREMENT as INCREMENT_COUNTER } from './counterEgg'
+
+export const INCREMENT_COUNTER_STAT = 'counterStats/INCREMENT'
+export function incrementCounterStat() {
+  return { type: INCREMENT_COUNTER_STAT }
+}
+
+function initializeCounterStats(state) {
+  return update(state, 'counterStats', (c = 0) => c)
+}
+
+function reduceIncrementCounterState(state, action) {
+  return update(state, 'counterStats', (c) => c + 1)
+}
+
+function afterIncrement({ store }, action) {
+  store.dispatch(incrementCounterStat)
+}
+
+export default function incrementEgg({
+  initializeState,
+  reduceAction,
+  afterAction,
+}) {
+  initializeState(initializeCounterStats)
+  reduceAction(INCREMENT_COUNTER_STAT, reduceIncrementCounterState)
+  afterAction(INCREMENT_COUNTER, afterIncrement)
+}
+```
+
+This change of how to handle derived actions reflects how the [DDD](https://levelup.gitconnected.com/redux-and-doman-driven-development-29f818f60f2f) methodology works. The idea is once we reduce an action, it is an event that describes what happened in the state. After that update, other parts of the application can react and update themselves, and consequently generate more events.
+
+## Patterns
+
+### Action pattern
 
 Eggs export action types. Names of action types are in capitals and separate words by underline. The value of the action includes a prefix, which should match with the one used in combineReducer.
 
 ```javascript
-export const INCREMENT = `${PREFIX}/INCREMENT`;
-export const REPLACE_COUNT = `${PREFIX}/REPLACE_COUNT`;
+export const INCREMENT = `${PREFIX}/INCREMENT`
+export const REPLACE_COUNT = `${PREFIX}/REPLACE_COUNT`
 ```
 
 Eggs export action creators. They are functions that receive parameters and creates a new action object.
 
 ```javascript
-export const increment = (value = 1) => ({ type: INCREMENT, value });
-export const replaceCount = value => ({ type: REPLACE_COUNT, value });
+export const increment = (value = 1) => ({ type: INCREMENT, value })
+export const replaceCount = (value) => ({ type: REPLACE_COUNT, value })
 ```
 
 Do not use action creators to dispatch something different from action. Use interceptors instead.
 
-### selectors patterns
+### Selectors patterns
 
 Eggs export selectors. They are functions that receive at most two arguments: the first is the current state, the second is props object with possible parameters. See [Redux](https://redux.js.org/introduction/learning-resources#selectors) to learn more.
 
 ```javascript
 export function getCount(state) {
-  return state[PREFIX];
+  return state[PREFIX]
 }
 ```
 
-## Interceptors
+### # addMiddleware
 
-The first problem that you find when you use redux is how to perform asynchronous operations. For example, how you can load data from a server? The problem is because all redux is synchronous.
-
-There lots of solutions, from redux-thunk (see [thunks sucks](#reason-2-thunks-sucks) later) to [redux saga](https://redux-saga.js.org/). Some solutions are too simple and do not allow good application scalability, like thunks, other solutions are far too complex and require their language.
-
-This egg presents a new way of operating with asynchronous code and other side effects. It simplifies most of the operations in three concepts: filterAction, decorateAction, and afterAction.
+Avoid the use of `addMiddleware`, instead of it, use `afterAction` whenever it is possible. But because probably you already have some middleware that you want to use, you can register it using `addMiddleware`.
 
 ```javascript
-const afterPingDispatchPong = async ({ store }, action) => {
-  await new Promise(r => setTimeout(r, 1000));
-  store.dispatch(pong(action.value));
-};
-
-const afterPongDispatchPing = async ({ store }, action) => {
-  await new Promise(r => setTimeout(r, 1000));
-  store.dispatch(pong(action.value + 1));
-};
-
-export default ({ afterAction }) => {
-  afterAction(PING, afterPingDispatchPong);
-  afterAction(PONG, afterPongDispatchPing);
-};
-```
-
-### filterAction
-
-Some times you want to avoid one action to be reduced. If it is your case, use the tool `filterAction` to manage it. It receives two arguments, the action type that you want to filter, and a filter function to evaluate if the action reduces. This filter function receives as the first argument is all the breeds, including the redux store, and a second one, which is the action itself. Return a boolean true or false to say if you let pass this action or you want to stop it.
-
-```javascript
-export function filterAction(
-  actionType: string,
-  filterFn: (breeds: Breeds, action: ReduxAction) => boolean
-) {
-  return state[PREFIX];
-}
-```
-
-Use `filterAction` in the egg.
-
-```javascript
-const filterPairIncrements = (_, action) => action.value % 2 === 0;
-const filterMaxCount10 = ({ store }, action) => {
-  const count = getCount(store.getState());
-  return count + action.value <= 10;
-};
-
-export default ({ filterAction }) => {
-  filterAction(INCREMENT, filterPairIncrements);
-  filterAction(INCREMENT, filterMaxCount10);
-};
-```
-
-### decorateActions
-
-Some times you do not have enough information in actions, and you want to decorate it and add new details before the reducer. Some other times you want to make sure that data is inside some bounds. Use `decorateAction` to transform actions before the reducer.
-It receives two arguments, the action type that you want to decorate, and a decorate function to mutate the action. This decorate function receives as the first argument is all the breeds, including the redux store, and a second one, which is the action itself.
-
-```javascript
-export function decorateAction(
-  actionType: string,
-  decorateFn: (breeds: Breeds, action: ReduxAction) => void
-) {
-  return state[PREFIX];
-}
-```
-
-Use `decorateAction` in the egg.
-
-```javascript
-let seqNumber = 0;
-const decorateIncrementHasSeqNumber = (_, action) => {
-  action.seqNumber = seqNumber;
-  seqNumber += 1;
-};
-const decorateIncrementAvoidsOverflow = ({ store }, action) => {
-  const count = getCount(store.getState());
-  const remaining = 10 - count;
-
-  if (action.value > remaining) {
-    action.value = remaining;
-  }
-};
-
-export default ({ decorateAction }) => {
-  decorateAction(INCREMENT, decorateIncrementHasSeqNumber);
-  decorateAction(INCREMENT, decorateIncrementAvoidsOverflow);
-};
-```
-
-### afterAction
-
-Probably this is the function that you want to call. The `afterAction` executes after an action reduces. It is the final step. And here is where you want to do your asynchronous operations.
-
-Think in `afterAction` as a cause and effect. Something has happened, some action has been dispatched and executed, and now you want to create an effect. It is usually to dispatch another action.
-
-The `afterAction` works like the two previous functions. It receives two arguments, the action type that you want to react, and an after function to mutate the action. This after function receives as the first argument is all the breeds, including the redux store, and a second one, which is the action itself.
-
-```javascript
-export function afterAction(
-  actionType: string,
-  afterFn: (breeds: Breeds, action: ReduxAction) => void
-) {
-  return state[PREFIX];
-}
-```
-
-Use `afterAction` in the egg.
-
-```javascript
-const afterFetchCounterReplaceTheCounter = async ({ store }, action) => {
-  const { counterId } = action;
-  const count = await fetchCounter(counterId);
-  store.dispatch(replaceCount(count));
-};
-const afterIncrementOverflowsResetTheCounter = ({ store }) => {
-  const count = getCount(store.getState());
-  if (count > 0) store.dispatch(replaceCount(0));
-};
-
-export default ({ afterAction }) => {
-  afterAction(FETCH_COUNTER, afterFetchCounterReplaceTheCounter);
-  afterAction(INCREMENT, afterIncrementOverflowsResetTheCounter);
-};
-```
-
-## Middleware
-
-All interceptors are in fact one middleware. You can add more middlewares.
-
-### addMiddleware
-
-Add your middleware with `addMiddleware`.
-
-```typescript
-function addMiddleware(middleware: ReduxMiddleware): void;
-```
-
-Use `addMiddleware` in the egg.
-
-```javascript
-import reduxThunk from 'redux-thunk';
+import reduxThunk from 'redux-thunk'
 
 export default ({ addMiddleware }) => {
-  addMiddleware(reduxThunk);
-};
+  addMiddleware(reduxThunk)
+}
 ```
 
 ## Why are eggs better than ducks?
@@ -285,121 +381,215 @@ and they conclude that dependency inversion is cool.
 If you have a dependency just use it.
 
 ```javascript
-import counterEgg, { INCREMENT } from 'counter-egg';
+import counterEgg, { INCREMENT } from 'counter-egg'
 
-export const getParity = ({ ['@my/parity']: parity }) => parity;
+export const getParity = ({ ['@my/parity']: parity }) => parity
 
 function parityReducer(state = true, action) {
   switch (action.type) {
     case INCREMENT:
-      return !state;
+      return !state
     default:
-      return state;
+      return state
   }
 }
 
 function parityEgg({ combineReducer }) {
-  combineReducer('@my/parity', parityReducer);
+  combineReducer('@my/parity', parityReducer)
 }
 
-export default [counterEgg, parityEgg];
+export default [counterEgg, parityEgg]
 ```
 
 And you can forgot to include the dependency in your app.
 
 ```javascript
-import hatch from 'egg-hatchery';
-import storeEgg from 'store-egg';
-import { increment } from '@my/counter-egg';
-import parityEgg, { getParity } from '@my/parity-egg';
+import hatch from 'egg-hatchery'
+import storeEgg from 'store-egg'
+import { increment } from '@my/counter-egg'
+import parityEgg, { getParity } from '@my/parity-egg'
 
 test('the parity changes with increment', () => {
-  const { store } = hatch(storeEgg, counterEgg, parityEgg);
-  store.dispatch(increment());
-  expect(getParity(store.getState())).toBe(false);
-});
+  const { store } = hatch(storeEgg, counterEgg, parityEgg)
+  store.dispatch(increment())
+  expect(getParity(store.getState())).toBe(false)
+})
 ```
 
 Or you can include it. It is not repeated.
 
 ```javascript
-import hatch from 'egg-hatchery';
-import storeEgg from 'store-egg';
-import counterEgg, { increment, getCount } from '@my/counter-egg';
-import parityEgg, { getParity } from '@my/parity-egg';
+import hatch from 'egg-hatchery'
+import storeEgg from 'store-egg'
+import counterEgg, { increment, getCount } from '@my/counter-egg'
+import parityEgg, { getParity } from '@my/parity-egg'
 
 test('the parity is still correct when the counter egg is added twice', () => {
-  const { store } = hatch(storeEgg, counterEgg, parityEgg);
-  store.dispatch(increment());
-  expect(getParity(store.getState())).toBe(false);
-});
+  const { store } = hatch(storeEgg, counterEgg, parityEgg)
+  store.dispatch(increment())
+  expect(getParity(store.getState())).toBe(false)
+})
 ```
 
 ### REASON 2: Thunks sucks
 
 Well, not exactly. There is one and only one reason to use a thunk: you need the state before dispatching a new action from a component. If you remember the redux connect, it does not inject the state into dispatcher properties. The thunk middleware gives you access to that state. That limitation was because of performance. Nowadays, you can use hooks, but they are still more efficient if you use thunks.
 
-The problem is the frequent use of thunks: launch subsequent actions to complement the current one. We were all thrilled with the ping pong example, but it was a lousy example. When we do these kinds of concatenated actions, we are looking for repercussions of the current action. In our duck, thanks to action creators, we can decouple and maintain it easily. The problem is, what happens when we want to intercept an action from an external duck? We need to use middleware, a redux observable, a saga, or something similar, but ducks are not ready for them. Like the reducers, if a duck needs a middleware or an equivalent, we have to prepare it manually.
+The problem is the frequent use of thunks: launch subsequent actions to complement the current one. We were all thrilled with the ping pong example, but it was a lousy example. When we do these kinds of concatenated actions, we are looking for repercussions of the current action. In our duck, thanks to action creators, we can decouple and maintain it easily. The problem is, what happens when we want to intercept an action from an external duck? We need to use middleware, a redux observable, a saga, or something similar, but ducks are not ready for them. Like the reducers, if a duck needs a middleware or an equivalent, we have to initialize it manually.
 
 The fiveEgg:
 
 ```javascript
-import counterEgg, { getCount, INCREMENT } from 'counter-egg';
+import counterEgg, { getCount, INCREMENT } from 'counter-egg'
 
-export const FIVE = '@my/counter/FIVE';
-export const getFives = ({ ['@my/five']: five }) => five;
-const five = () => ({ type: FIVE });
+export const FIVE = '@my/counter/FIVE'
+export const getFives = ({ ['@my/five']: five }) => five
+const five = () => ({ type: FIVE })
 
 function fiveReducer(state = 0, action) {
   switch (action.type) {
     case FIVE:
-      return state + 1;
+      return state + 1
     default:
-      return state;
+      return state
   }
 }
 
-const fiveMiddleware = store => next => action => {
-  next(action);
+const fiveMiddleware = (store) => (next) => (action) => {
+  next(action)
   switch (action.type) {
     case INCREMENT:
-      if (getCount(store.getState()) % 5 === 0) store.dispatch(five());
+      if (getCount(store.getState()) % 5 === 0) store.dispatch(five())
     default:
   }
-};
-
-function fiveEgg({ combineReducer, addMiddleware }) {
-  combineReducer('@my/five', fiveReducer);
-  addMiddleware(fiveMiddleware);
 }
 
-export default [counterEgg, fiveEgg];
+function fiveEgg({ combineReducer, addMiddleware }) {
+  combineReducer('@my/five', fiveReducer)
+  addMiddleware(fiveMiddleware)
+}
+
+export default [counterEgg, fiveEgg]
 ```
 
 And how your program would look:
 
 ```javascript
-import hatch from 'egg-hatchery';
-import storeEgg from 'store-egg';
-import { increment } from '@my/counter-egg';
-import fiveEgg, { getFives } from '@my/five-egg';
+import hatch from 'egg-hatchery'
+import storeEgg from 'store-egg'
+import { increment } from '@my/counter-egg'
+import fiveEgg, { getFives } from '@my/five-egg'
 
 test('the five changes with increment', () => {
-  const { store } = hatch(storeEgg, fiveEgg);
-  store.dispatch(increment());
-  store.dispatch(increment());
-  store.dispatch(increment());
-  store.dispatch(increment());
-  store.dispatch(increment());
-  expect(getFives(store.getState())).toBe(1);
-});
+  const { store } = hatch(storeEgg, fiveEgg)
+  store.dispatch(increment())
+  store.dispatch(increment())
+  store.dispatch(increment())
+  store.dispatch(increment())
+  store.dispatch(increment())
+  expect(getFives(store.getState())).toBe(1)
+})
 ```
 
 ### REASON 3: They are still ducks
 
 Well, they are almost ducks. There is only one change: instead of exporting by default, a reducer they export by default the egg. Everything else is the well-known old duck.
 
-## Learn deeper
+### REASON 4: Teal Redux Eggs are SOLID
+
+Technically they are not SOLID, but they can become SOLID if you write them carefully. One of the fundamental principles of SOLID programming is the [Open Close Principle](https://en.wikipedia.org/wiki/Open%E2%80%93closed_principle). That Principle states that files should be open to extension, but closed for modification. The question is, how to not to write inside a file, but extend their behavior?
+
+The problem of the typical Redux Reducer is the switch statement. That statement disables the Open Close Principle completely. It is because if you want to add any additional action, you need to add one more switch case.
+
+```javascript
+import { INCREMENT, RESET } from './actions'
+
+export default function classicReduceCounter(state = 0, action) {
+  switch (action.type) {
+    case INCREMENT:
+      return (state += action.amount)
+    case RESET:
+      return 0
+    default:
+      return state
+  }
+}
+```
+
+The consequence is that if you are planning to reuse that duck, module, in other applications, you have to use all or nothing.
+
+Imagine that you are planning to sell the counter module, and charge extra money for the reset operations. You cannot do that unless you add some additional logic to ignore the reset case.
+
+Imagine another case; you are using the basic counter in another application, and now you want to reuse that counter, but you need the reset operation. You have two options: 1) create a clone of the module and have a different counter with reset, 2) add the reset to the original implementation. If you clone the module, you have a maintenance problem: you are duplicating logic in two different modules. If you add the reset implementation to the original module, you add this functionality to all previous applications. And that has two hazards: the other applications got heavier because they support non-required features, and it might have undesired consequences.
+
+That problem does not happen with Teal Redux eggs. You have an egg for the original counter, and you can implement a second egg for the reset functionality. That means that you have two modules. Now you can either sell them separately or use one or two. Old applications remain unaffected; new applications can enhance available behaviors.
+
+```javascript
+// counterEgg.js
+import { update } from 'object-path-immutable'
+
+export function getCount(state) {
+  return state.counter
+}
+
+export const INCREMENT = 'counter/INCREMENT'
+export function increment(amount = 1) {
+  return { type: INCREMENT, amount }
+}
+
+function initializeCounter(state = {}) {
+  return update(state, 'counter', (c = 0) => c)
+}
+
+function reduceIncrement(state, action) {
+  return update(state, 'counter', (c) => c + action.amount)
+}
+
+export default ({ initializeState, reduceAction }) => {
+  initializeState(initializeCounter)
+  reduceAction(INCREMENT, reduceIncrement)
+}
+```
+
+```javascript
+// counterResetEgg.js
+import { set } from 'object-path-immutable'
+
+export function getCount(state) {
+  return state.counter
+}
+
+export const RESET = 'counter/RESET'
+export function reset() {
+  return { type: RESET }
+}
+
+function reduceReset(state, action) {
+  return set(state, 'counter', 0)
+}
+
+export default ({ initializeState }) => {
+  reduceAction(RESET, reduceReset)
+}
+```
+
+### REASON 5: Less dirty mains
+
+The main of any application is the dirtiest part of any application. The main initializes and starts everything; it needs to know the details of all modules and logics from our code and wire altogether. Moreover, the main is the part that we must replicate in our tests; the more complex the main, the less reliable and more complicated the tests are.
+
+If you think in a common Redux module, you need to think about its necessities. The main must be aware and wire correctly:
+Does it have a reducer and which key I use in the combineReducer?
+Does it have any additional reducer not combined with others?
+Does it have any middleware?
+Does it use any redux-observable?
+Does it use any saga?
+Does it require the inclusion of other ducks?
+
+Some time ago, the answer was tools like [ducksReducer](https://github.com/drpicox/ducks-reducer) or [ducksMiddleware](https://github.com/drpicox/ducks-middleware). They received all the ducks and generated the expected reducer or middleware. Unfortunately, it had two problems: 1) you have to import everything from the module, so you lose the ability to do tree-shaking, and 2) it does not resolve dependencies. If any module requires redux-thunk, a module cannot load it (it might become duplicated), so it transfers the responsibility to the main to add it. So it solved the problem partially.
+
+Teal Redux Eggs solve most of these problems. Each egg is a self-configuration module. It describes what to configure in the redux store, and it also can include other modules. And because you can specify an array of dependencies, one dependency can be the reduxThunkEgg, include it in all of the eggs that you want, and let to the [egg-hatchery](https://github.com/drpicox/egg-hatchery) load it once.
+
+## Learn more
 
 Look at tests for more details.
 
